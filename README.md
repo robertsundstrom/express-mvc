@@ -7,7 +7,13 @@ Sample project: https://github.com/robertsundstrom/express-mvc-test
 
 ## Installation
 
-  `npm install @robertuzzu/express-mvc`
+Set registry:
+
+`npm config set registry https://www.myget.org/F/robert-node/npm/`
+
+Install the package:
+
+`npm install @robertuzzu/express-mvc`
 
 ## Usage
 
