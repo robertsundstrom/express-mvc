@@ -3,6 +3,8 @@ Express MVC
 
 A small library that adds some utilities for structuring your web app according to the Model-View-Controller (MVC) pattern.
 
+THIS IS EXPERIMENTAL!
+
 Sample project: https://github.com/robertsundstrom/express-mvc-test
 
 ## Installation
