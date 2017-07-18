@@ -15,6 +15,10 @@ Install the package:
 
 `npm install @robertuzzu/express-mvc`
 
+Alternative:
+
+`npm install @robertuzzu/express-mvc --registry https://www.myget.org/F/robert-node/npm/`
+
 ## Usage
 
 Using TypeScript, although it works with plain JavaScript/EcmaScript also:
