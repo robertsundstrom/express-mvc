@@ -1,4 +1,4 @@
-export function post(route: string) {
+export function post(route: string = "/") {
     return (target: any, key: string, descriptor: PropertyDescriptor) => {
         if (!("routes" in target)) {
             target.routes = {};

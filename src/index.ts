@@ -3,7 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 export { Controller } from "./Controller";
-export { inject } from "./inject";
+export { inject, autoinject } from "./inject";
 export { post } from "./post";
 export { get } from "./get";
 export { put } from "./put";

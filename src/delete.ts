@@ -1,4 +1,4 @@
-export function delete_(route: string) {
+export function delete_(route: string = "/") {
     return (target: any, key: string, descriptor: PropertyDescriptor) => {
         if (!("routes" in target)) {
             target.routes = {};

@@ -1,4 +1,4 @@
-export function put(route: string) {
+export function put(route: string  = "/") {
     return (target: any, key: string, descriptor: PropertyDescriptor) => {
         if (!("routes" in target)) {
             target.routes = {};

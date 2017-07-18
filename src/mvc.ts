@@ -61,15 +61,26 @@ export function useMvc(app: express.Application) {
         // const router = express.Router();
         const router = app;
 
+        // console.log(prototype.routes);
         for (let routeKey in prototype.routes) {
             if (typeof routeKey === "string") {
                 const routes = prototype.routes[routeKey];
                 for (const route of routes) {
                     const handler = createHandler(route, controllerType, injectables);
                     if (routeKey === "/") {
+                        // Default to controller route.
                         routeKey = "";
+                    } else if (routeKey !== "/" && !routeKey.startsWith("/")) {
+                        // Action route not starting with "/". Potentially just a parameter placeholder.
+                        routeKey = "/" + routeKey;
                     }
-                    const routePath = controllerType.route + routeKey;
+                    let controllerRoute = controllerType.route;
+                    if (typeof controllerRoute === "undefined") {
+                        // Make route based on the name of the class.
+                        controllerRoute = "/" + controllerType.name.replace("Controller", "");
+                    }
+                    const routePath = controllerRoute + routeKey;
+                    // console.log(route.method, routePath);
                     switch (route.method) {
                         case "get":
                             router.get(routePath, handler);
