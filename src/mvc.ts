@@ -17,7 +17,7 @@ const appDir = path.dirname(require.main!.filename);
 
 export const controllerDir = path.resolve(appDir, "controller");
 
-export function createHandler(route: any, controllerType: any, injectables: any[]) {
+export function createDecoratorRouteHandler(route: any, controllerType: any, injectables: any[]) {
     return async (req: express.Request, res: express.Response) => {
         const injectableInstances: any[] = resolveInjectables(injectables);
         const instance = new controllerType(...injectableInstances);
@@ -47,7 +47,9 @@ export function createHandler(route: any, controllerType: any, injectables: any[
     };
 }
 
-export function useMvc(app: express.Application) {
+const controllers: any = {};
+
+function loadCoontrollers() {
     for (const controllerFile of fs.readdirSync(controllerDir)) {
         if (path.extname(controllerFile) !== ".js") {
             continue;
@@ -55,50 +57,57 @@ export function useMvc(app: express.Application) {
         const controllerFilePath = path.resolve(controllerDir, controllerFile);
         const module = require(controllerFilePath);
         const controllerType = module.default;
-        const injectables = controllerType.inject;
-        const prototype = controllerType.prototype;
+        const controllerTypeName = controllerType.name;
+        controllers[controllerTypeName] = controllerType;
+    }
+}
 
-        // const router = express.Router();
-        const router = app;
-
-        // console.log(prototype.routes);
-        for (let routeKey in prototype.routes) {
-            if (typeof routeKey === "string") {
-                const routes = prototype.routes[routeKey];
-                for (const route of routes) {
-                    const handler = createHandler(route, controllerType, injectables);
-                    if (routeKey === "/") {
-                        // Default to controller route.
-                        routeKey = "";
-                    } else if (routeKey !== "/" && !routeKey.startsWith("/")) {
-                        // Action route not starting with "/". Potentially just a parameter placeholder.
-                        routeKey = "/" + routeKey;
-                    }
-                    let controllerRoute = controllerType.route;
-                    if (typeof controllerRoute === "undefined") {
-                        // Make route based on the name of the class.
-                        controllerRoute = "/" + controllerType.name.replace("Controller", "");
-                    }
-                    const routePath = controllerRoute + routeKey;
-                    // console.log(route.method, routePath);
-                    switch (route.method) {
-                        case "get":
-                            router.get(routePath, handler);
-                            break;
-                        case "post":
-                            router.post(routePath, handler);
-                            break;
-                        case "put":
-                            router.put(routePath, handler);
-                            break;
-                        case "delete":
-                            router.delete(routePath, handler);
-                            break;
-                    }
+function registerDecoratorRoutes(router: any, controllerType: any) {
+    const injectables = controllerType.inject;
+    const prototype = controllerType.prototype;
+    for (let routeKey in prototype.routes) {
+        if (typeof routeKey === "string") {
+            const routes = prototype.routes[routeKey];
+            for (const route of routes) {
+                const handler = createDecoratorRouteHandler(route, controllerType, injectables);
+                if (routeKey === "/") {
+                    // Default to controller route.
+                    routeKey = "";
+                } else if (routeKey !== "/" && !routeKey.startsWith("/")) {
+                    // Action route not starting with "/". Potentially just a parameter placeholder.
+                    routeKey = "/" + routeKey;
+                }
+                let controllerRoute = controllerType.route;
+                if (typeof controllerRoute === "undefined") {
+                    // Make route based on the name of the class.
+                    controllerRoute = "/" + controllerType.name.replace("Controller", "");
+                }
+                const routePath = controllerRoute + routeKey;
+                // console.log(route.method, routePath);
+                switch (route.method) {
+                    case "get":
+                        router.get(routePath, handler);
+                        break;
+                    case "post":
+                        router.post(routePath, handler);
+                        break;
+                    case "put":
+                        router.put(routePath, handler);
+                        break;
+                    case "delete":
+                        router.delete(routePath, handler);
+                        break;
                 }
             }
         }
-        // app.use(controllerType.route, router);
+    }
+}
+
+export function useMvc(app: express.Application) {
+    const router = app;
+    loadCoontrollers();
+    for (const controllerType of Object.values(controllers)) {
+        registerDecoratorRoutes(router, controllerType);
     }
 }
 
