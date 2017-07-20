@@ -9,4 +9,4 @@ export { get } from "./get";
 export { put } from "./put";
 export { delete_ } from "./delete";
 export { route } from "./route";
-export { useMvc as mvc } from "./mvc";
+export { useMvc as mvc, mapRoute } from "./mvc";

@@ -17,22 +17,33 @@ const appDir = path.dirname(require.main!.filename);
 
 export const controllerDir = path.resolve(appDir, "controller");
 
-export function createDecoratorRouteHandler(route: any, controllerType: any, injectables: any[]) {
+export function resolveControllerInstance(controllerType: any) {
+    const injectables = controllerType.inject;
+    const injectableInstances: any[] = resolveInjectables(injectables);
+    return new controllerType(...injectableInstances);
+}
+
+export function resolveAction(instance: any, action: string): any {
+    return instance[action].bind(instance);
+}
+
+export function setControllerContext(controllerInstance: any, req: any, res: any) {
+    controllerInstance.req = req;
+    controllerInstance.res = res;
+}
+
+export function createRouteHandler(action: string, controllerType: any) {
     return async (req: express.Request, res: express.Response) => {
-        const injectableInstances: any[] = resolveInjectables(injectables);
-        const instance = new controllerType(...injectableInstances);
-        instance.req = req;
-        instance.res = res;
+        const controllerInstance = resolveControllerInstance(controllerType);
+        const a = resolveAction(controllerInstance, action);
+        setControllerContext(controllerInstance, req, res);
         const params = Object.values(req.params);
-        const query = req.query;
         const data = req.body;
-        const action = instance[route.action].bind(instance);
         try {
-            const response = await action(...params, data);
+            const response = await a(...params, data);
             // If server response
             // If else send content
-
-            if (typeof response === "string" || !("_write" in response)) {
+            if (typeof response !== "undefined" && (typeof response === "string" || !("_write" in response))) {
                 res.contentType("application/json");
                 res.send(JSON.stringify(response));
             }
@@ -47,29 +58,48 @@ export function createDecoratorRouteHandler(route: any, controllerType: any, inj
     };
 }
 
+function readdirSync(dir: string) {
+    function walkSync(dir2: string, filelist?: string[]) {
+        // tslint:disable-next-line:one-variable-per-declaration
+        const files = fs.readdirSync(dir2);
+        filelist = filelist || [];
+        const relativeDir = path.relative(dir, dir2);
+        files.forEach((file) => {
+            if (fs.statSync(dir2 + "/" + file).isDirectory()) {
+                filelist = walkSync(dir2 + "/" + file, filelist);
+            } else {
+                const filePath = path.join(relativeDir, file);
+                filelist.push(filePath);
+            }
+        });
+        return filelist;
+    }
+    return walkSync(dir);
+}
+
 const controllers: any = {};
 
-function loadCoontrollers() {
-    for (const controllerFile of fs.readdirSync(controllerDir)) {
+function loadControllers() {
+    for (let controllerFile of readdirSync(controllerDir)) {
         if (path.extname(controllerFile) !== ".js") {
             continue;
         }
+        controllerFile = controllerFile.replace(".js", "");
         const controllerFilePath = path.resolve(controllerDir, controllerFile);
         const module = require(controllerFilePath);
         const controllerType = module.default;
         const controllerTypeName = controllerType.name;
-        controllers[controllerTypeName] = controllerType;
+        controllers[controllerFile /* controllerTypeName */] = controllerType;
     }
 }
 
 function registerDecoratorRoutes(router: any, controllerType: any) {
-    const injectables = controllerType.inject;
     const prototype = controllerType.prototype;
     for (let routeKey in prototype.routes) {
         if (typeof routeKey === "string") {
             const routes = prototype.routes[routeKey];
             for (const route of routes) {
-                const handler = createDecoratorRouteHandler(route, controllerType, injectables);
+                const handler = createRouteHandler(route.action, controllerType);
                 if (routeKey === "/") {
                     // Default to controller route.
                     routeKey = "";
@@ -77,11 +107,7 @@ function registerDecoratorRoutes(router: any, controllerType: any) {
                     // Action route not starting with "/". Potentially just a parameter placeholder.
                     routeKey = "/" + routeKey;
                 }
-                let controllerRoute = controllerType.route;
-                if (typeof controllerRoute === "undefined") {
-                    // Make route based on the name of the class.
-                    controllerRoute = "/" + controllerType.name.replace("Controller", "");
-                }
+                const controllerRoute = controllerType.route;
                 const routePath = controllerRoute + routeKey;
                 // console.log(route.method, routePath);
                 switch (route.method) {
@@ -103,12 +129,26 @@ function registerDecoratorRoutes(router: any, controllerType: any) {
     }
 }
 
+export function mapRoute(app: express.Application, name: string, template: string, defaults: any) {
+    app.get(template, async (req: express.Request, res: express.Response) => {
+        const { action, controller } = req.params;
+        const routeHandler = createRouteHandler(action, controller);
+        await routeHandler(req, res);
+    });
+    if (defaults) {
+        app.get("/", async (req: express.Request, res: express.Response) => {
+            const { action, controller } = defaults;
+            const controllerType = controllers[controller];
+            const routeHandler = createRouteHandler(action, controllerType);
+            await routeHandler(req, res);
+        });
+    }
+}
+
 export function useMvc(app: express.Application) {
     const router = app;
-    loadCoontrollers();
+    loadControllers();
     for (const controllerType of Object.values(controllers)) {
         registerDecoratorRoutes(router, controllerType);
     }
 }
-
-// "{controller}/{action}/{id}".match(/\{(.*?)\}/g);
