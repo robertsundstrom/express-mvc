@@ -69,7 +69,9 @@ function readdirSync(dir: string) {
                 filelist = walkSync(dir2 + "/" + file, filelist);
             } else {
                 const filePath = path.join(relativeDir, file);
-                filelist.push(filePath);
+                if (typeof filelist !== "undefined") {
+                    filelist.push(filePath);
+                }
             }
         });
         return filelist;
