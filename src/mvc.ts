@@ -1,17 +1,8 @@
 import * as express from "express";
 import * as fs from "fs";
 import * as path from "path";
-
-function resolveInjectables(injectables: any[]): any[] {
-    const injectableInstances: any[] = [];
-    if (injectables) {
-        for (const injectable of injectables) {
-            const injectableInstance = new injectable();
-            injectableInstances.push(injectableInstance);
-        }
-    }
-    return injectableInstances;
-}
+import * as di from "./di";
+import * as ioc from "./ioc";
 
 const appDir = path.dirname(require.main!.filename);
 
@@ -19,8 +10,12 @@ export const controllerDir = path.resolve(appDir, "controller");
 
 export function resolveControllerInstance(controllerType: any) {
     const injectables = controllerType.inject;
-    const injectableInstances: any[] = resolveInjectables(injectables);
-    return new controllerType(...injectableInstances);
+    if (injectables) {
+        const dependencies = ioc.resolveAll(injectables);
+        return di.inject(controllerType, Array.from(dependencies));
+    } else {
+        return new controllerType();
+    }
 }
 
 export function resolveAction(instance: any, action: string): any {
